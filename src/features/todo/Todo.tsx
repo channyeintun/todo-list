@@ -25,7 +25,6 @@ export function Todo() {
       const todos = useAppSelector(selectTodos);
       const status = useAppSelector(selectStatus);
       const [selectedFilter, setFilter] = useState<string>("All");
-      // const [todoList, setTodoList] = useState<TodoType[]>([]);
       const [addInput, setAddInput] = useState<string>("");
 
       useEffect(() => {
