@@ -1,8 +1,14 @@
 .container {
+      --cursor: default;
       max-width: 720px;
       background-color: #F5F5F5;
       border-radius: 20px;
       margin: 42px auto;
+      padding: 0 15px;
+}
+
+.container *:not(input) {
+      cursor: var(--cursor) !important;
 }
 
 .progressContainer {
@@ -128,7 +134,6 @@
       background-color: white;
       padding: 5px 8px;
       border-radius: 8px;
-      cursor: default;
 }
 
 .addInput {
@@ -236,12 +241,12 @@
 .saveBtn {
       min-width: 64px;
       height: 36px;
-      color:white;
+      color: white;
       background-color: #585292;
       border-radius: 999px;
       border: none;
-      position:absolute;
-      top:50%;
-      right:6px;
+      position: absolute;
+      top: 50%;
+      right: 6px;
       transform: translateY(-50%);
 }

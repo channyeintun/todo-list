@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import styles from './Todo.module.css';
 import {
       ChevDownSolid,
@@ -6,79 +6,86 @@ import {
       UnCheckedSolid,
       OptionsDots
 } from '../../components/icons';
-
-type ID = number | string;
-
-interface TodoType {
-      id: ID;
-      value: string;
-      completed: boolean;
-      isEditable: boolean;
-}
+import {
+      ID,
+      TodoType,
+      addTodoAsync,
+      getTodoListAsync,
+      updateTodoAsync,
+      deleteTodoAsync,
+      selectTodos,
+      selectStatus,
+      toggleEditable
+} from './todoSlice';
+import { useAppSelector, useAppDispatch } from '../../app/hooks';
 
 export function Todo() {
 
+      const dispatch = useAppDispatch();
+      const todos = useAppSelector(selectTodos);
+      const status = useAppSelector(selectStatus);
       const [selectedFilter, setFilter] = useState<string>("All");
-      const [todoList, setTodoList] = useState<TodoType[]>([]);
+      // const [todoList, setTodoList] = useState<TodoType[]>([]);
       const [addInput, setAddInput] = useState<string>("");
 
-      const onChangeFilter = (value: string) => {
-            setFilter(value);
+      useEffect(() => {
+            dispatch(getTodoListAsync());
+      }, []);
+
+      const onChangeFilter = (title: string) => {
+            setFilter(title);
       }
 
+      // on enter in input box to add new todo item
       const onSave = (e: React.KeyboardEvent<HTMLInputElement>) => {
-
-            if (e.key === 'Enter' && addInput) {
-                  setTodoList([
-                        ...todoList,
-                        {
-                              id: Math.random().toString(36).substring(2, 12),
-                              value: addInput,
-                              completed: false,
-                              isEditable: false,
-                        }
-                  ]);
+            if (e.key === 'Enter' && addInput !== "") {
+                  const newItem = {
+                        title: addInput,
+                        completed: false,
+                        isEditable: false,
+                  };
+                  dispatch(addTodoAsync(newItem));
                   setAddInput("");
             }
       }
 
+      // to control state of input box used to add new todo item
       const onAddInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
             const value = (e.target as HTMLInputElement).value;
             setAddInput(value);
       }
 
-      const toggleEditable = (id: ID) => {
-            const index = findIndex(todoList, id);
-            let item = todoList[index];
-            todoList[index] = {
-                  ...item,
-                  isEditable: !item.isEditable
-            }
-            setTodoList([...todoList]);
+      // on click edit button
+      const _toggleEditable = (id: ID) => {
+            dispatch(toggleEditable(id));
       }
 
+      // on click delete button
       const deleteTodo = (id: ID) => {
-            const result = todoList.filter((value, index) => id !== value.id);
-            setTodoList(result);
+            dispatch(deleteTodoAsync(id));
       }
 
+      // on click checkbox
       const toggleComplete = (id: ID) => {
-            const index = findIndex(todoList, id);
-            let item = todoList[index];
-            item.completed = !item.completed;
-            todoList[index] = item;
-            setTodoList([...todoList]);
+            const index = findIndex(todos, id);
+            const item = todos[index];
+            const updated = {
+                  ...item,
+                  completed: !item.completed
+            };
+            dispatch(updateTodoAsync(updated));
       }
 
+      // save action for editting todo item
       const saveEditedTodo = (todo: TodoType) => {
-            const index = findIndex(todoList, todo.id);
-            todoList[index] = {
+            const updated = {
                   ...todo,
                   isEditable: false
             };
-            setTodoList([...todoList]);
+            dispatch(updateTodoAsync(updated));
       }
 
+      // utility function
       const findIndex = (list: TodoType[], id: ID) => list.findIndex(el => el.id === id)
 
       // to filter todo as selected filter
@@ -88,11 +95,13 @@ export function Todo() {
       const callback = (todo: TodoType) => filter(todo.completed, selectedFilter)
 
       return (
-            <div className={styles.container}>
+            <div className={styles.container} style={{
+                  [`--cursor`]: status === 'loading' ? 'wait' : 'default'
+            } as any}>
                   <div className={styles.innerContainer}>
                         {/* progress bar */}
-                        <Progress total={todoList.length} completed={
-                              todoList.reduce((ac, o) => ac = o.completed ? ac + 1 : ac, 0)} />
+                        <Progress total={todos.length} completed={
+                              todos.reduce((ac, o) => ac = o.completed ? ac + 1 : ac, 0)} />
 
                         {/* tasks & filter */}
                         <section className={styles.header}>
@@ -102,7 +111,7 @@ export function Todo() {
 
                         {/* todo list */}
                         {
-                              todoList
+                              todos
                                     .filter(callback)
                                     .map((todo) => {
 
@@ -110,19 +119,19 @@ export function Todo() {
                                                 color: todo.completed ? "#A9A9A9" : "#2E2E2E",
                                                 textDecoration: todo.completed ? 'line-through' : 'none'
                                           }}>
-                                                {todo.completed ? <CheckedSolid onClick={() => toggleComplete(todo.id)} />
-                                                      : <UnCheckedSolid onClick={() => toggleComplete(todo.id)} />}
+                                                {todo.completed ? <CheckedSolid onClick={() => toggleComplete(todo.id as ID)} />
+                                                      : <UnCheckedSolid onClick={() => toggleComplete(todo.id as ID)} />}
                                                 <div className={styles.todoText}>
-                                                      {todo.value}
+                                                      {todo.title}
                                                 </div>
                                                 <button className={styles.dots}>
                                                       <OptionsDots />
                                                       <Popover
                                                             onEdit={() => {
-                                                                  toggleEditable(todo.id);
+                                                                  _toggleEditable(todo.id as ID);
                                                             }}
                                                             onDelete={() => {
-                                                                  deleteTodo(todo.id);
+                                                                  deleteTodo(todo.id as ID);
                                                             }} />
                                                 </button>
                                           </div>);
@@ -133,7 +142,7 @@ export function Todo() {
                                     })
                         }
 
-                        {/* Add todo  */}
+                        {/* Add todo - input */}
                         <input
                               value={addInput}
                               onChange={onAddInputChange}
@@ -230,22 +239,35 @@ const EditTodo = ({
       const [todo, setTodo] = useState(initialValue);
 
       const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-            const value = (e.target as HTMLInputElement).value;
+            const title = (e.target as HTMLInputElement).value;
             setTodo({
                   ...todo,
-                  value
+                  title
             });
       }
 
       const handleSave = (e: React.MouseEvent<HTMLElement>) => {
-            if (todo.value !== "") {
+            if (todo.title !== "") {
                   onSave(todo);
             }
       }
+
+      const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+            if (e.key === 'Enter' && todo.title !== "") {
+                  onSave(todo);
+            }
+      }
+
       return (
             <div className={styles.editBox}>
-                  <input onChange={onChange} value={todo.value} className={styles.editInput} />
-                  <button className={styles.saveBtn} onClick={handleSave}>Save</button>
+                  <input
+                        onChange={onChange}
+                        value={todo.title}
+                        className={styles.editInput}
+                        onKeyDown={handleKeyDown} />
+                  <button
+                        className={styles.saveBtn}
+                        onClick={handleSave}>Save</button>
             </div>
       )
 }
